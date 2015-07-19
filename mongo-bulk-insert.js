@@ -6,9 +6,12 @@ var path = require('path');
 var async = require('async');
 var client = require('mongodb').MongoClient;
 
-var indexOp = require('./mongo-index'); 
+var mongoose = require('mongoose'),
+	Schema = mongoose.Schema,
+	ObjectId = Schema.ObjectId;
 
-var url = 'mongodb://127.0.0.1:27017/node2';
+
+var indexOp = require('./mongo-index'); 
 
 var RECORD_SIZE = 39;
 var SLICE_SIZE = 1000;
@@ -60,151 +63,159 @@ var recordParse = function(file, Recorder, callback){
 	});
 }
 
-var bulkInsert = function(docs, callback){
+var manyBulkInsert = function(docs, callback){
 	client.connect(url, function(err, db){
 		if(err){
 			console.log("cannot connect to database");
 			callback(err);
 		}
-		console.time("InsertTime");
+		console.time("InsertTime / manyBulkInsert");
 
 		var col = db.collection("taxi");
+
 		//batch insert
-		var times = Math.ceil(docs.length / SLICE_SIZE);
-		var docsArray = [];
+		var parts = Math.ceil(docs.length / SLICE_SIZE);
+		var docsArray = thousandSlice(docs, parts)
 
-		var functionArray = [];
-
-		console.time("SliceTime");
-		for(var i = 0 ; i < times; i ++){
-			if(i != times - 1) {
-				docsArray.push(docs.slice(i * SLICE_SIZE, (i + 1)* SLICE_SIZE - 1));
-			} else {
-				docsArray.push(docs.slice(i * SLICE_SIZE, docs.length - 1));
-			}
-		}
-		// for(var i in docsArray){
-		// 	functionArray.push(
-		// 		function(cb){
-		// 			col.insertMany(docsArray[i], function(err){
-		// 				if(err) {
-		// 					cb(err);
-		// 					return;
-		// 				}
-		// 				cb(null);
-		// 			});
-		// 		}
-		// 	);
-		// }
-		console.timeEnd("SliceTime");
-
-		// console.log(functionArray);
-
-		console.log(times);
+		console.log("Sliced to " + parts + " parts");
 
 		var insertCount = 0;
-
-		// col.insert(docs, function(err){
-		// 	if(err) callback(err);
-		// 	db.close();
-		// 	console.timeEnd("InsertTime");
-		// 	callback(null, "Insert Success!");	
-		// });
-
 		async.each(docsArray,
 			function(docPart, cb){
 				col.insertMany(docPart, function(err){
 					if(err) cb(err);
-					console.log( ++insertCount / times * 100 + "% Finished.");
+					console.log( ++insertCount / parts * 100 + "% Finished.");
 					cb();
 				});
 			},
 			function(err){
 				if(err) callback(err);
 				db.close();
-				console.timeEnd("InsertTime");
+				console.timeEnd("InsertTime / manyBulkInsert");
 				callback(null, "Insert Success!");				
 			}
 		);
-
-
-		// //single test
-		// col.insertMany(docsArray[3], function(err){
-		// 	if(err) callback(err);
-		// 	console.log("all green.");
-		// 	db.close();
-		// 	console.timeEnd("InsertTime");
-		// 	callback(null, "Insert Success!");	
-		// });
-
-		// col.insertMany(docs, function (err){
-		// 	if(err){
-		// 		console.log(err);
-		// 	}
-		// 	db.close();
-		// });
-
-		// async.parallel(functionArray, function(err, results){
-		// 	if(err){
-		// 		console.log(err);
-		// 		db.close();
-		// 		callback(err);
-		// 	}
-		// 	db.close();
-		// 	console.timeEnd("InsertTime");
-		// 	callback(null, "Insert Success!");	
-		// });
-
-
-		// db.close();
-		// console.timeEnd("InsertTime");
-		// callback(null, "Insert Success!");	
-
-
-		//batch insert
-		// var batch = col.initializeOrderedBulkOp({
-		// 	useLegacyOps: true
-		// });
-
-		// var batch = col.initializeUnorderedBulkOp({
-		// 	useLegacyOps: true
-		// });
-
-		// for(var index in docs){
-		// 	var doc = docs[index];
-		// 	batch.insert(doc);
-		// }
-
-		// batch.execute(function(err){
-		// 	if(err){
-		// 		console.log(err);
-		// 	}
-		// 	db.close();
-		// 	console.timeEnd("InsertTime");
-		// 	callback(null, "Insert Success!");
-		// });
-
-
-		// async.each(docs,
-		// 	function(doc, cb){
-		// 		col.insert(doc, function(err){
-		// 			if(err) cb(err);
-		// 			cb();
-		// 		});
-		// 	},
-		// 	function(err){
-		// 		if(err) callback(err);
-		// 		db.close();
-		// 		console.timeEnd("InsertTime");
-		// 		callback(null, "Insert Success!");	
-		// 	}
-		// );
-
 	});
 }
 
+function bulkInsert(docs, callback){
+	console.time("InsertTime / bulkInsert");
+
+	client.connect(url, function(err, db){
+		if(err){
+			console.log("cannot connect to database");
+			callback(err);
+		}
+		var col = db.collection("taxi");
+
+		//batch insert
+		var batch = col.initializeOrderedBulkOp();
+		// var batch = col.initializeUnorderedBulkOp();
+
+		for(var index in docs){
+			var doc = docs[index];
+			batch.insert(doc);
+		}
+
+		batch.execute(function(err){
+			if(err){
+				console.log(err);
+			}
+			db.close();
+			console.timeEnd("InsertTime / bulkInsert");
+			callback(null, "Insert Success!");
+		});
+	});
+}
+
+function singleLoopInsert(docs, callback) {
+	console.time("InsertTime / singleLoopInsert");
+
+	client.connect(url, function(err, db){
+		if(err){
+			console.log("cannot connect to database");
+			callback(err);
+		}
+		var col = db.collection("taxi");
+		async.each(docs,
+			function(doc, cb){
+				col.insert(doc, function(err){
+					if(err) cb(err);
+					cb();
+				});
+			},
+			function(err){
+				if(err) callback(err);
+				db.close();
+				console.timeEnd("InsertTime / singleLoopInsert");
+				callback(null, "Insert Success!");	
+			}
+		);
+	});
+}
+
+function mongooseBulkInsert(docs, callback){
+	console.time("InsertTime / mongooseBulkInsert");
+
+	var parts = Math.ceil(docs.length / SLICE_SIZE);
+	var docsArray = thousandSlice(docs, parts);
+	
+	var insertCount = 0;
+	async.each(docsArray,
+		function(docPart, cb){
+			TaxiRecord.collection.insert(docPart, function(err){
+				if(err){
+					cb(err);
+				}
+				console.log( ++insertCount / parts * 100 + "% Finished.");
+				cb();
+			});
+		},
+		function(err){
+			if(err) callback(err);
+			mongoose.disconnect();
+			console.timeEnd("InsertTime / mongooseBulkInsert");
+			callback(null, "Insert Success!");				
+		}
+	);
+}
+
+function thousandSlice(docs, parts){
+	console.time("SliceTime");
+	var docsArray = []; 
+	for(var i = 0 ; i < parts; i ++){
+		if(i != parts - 1) {
+			docsArray.push(docs.slice(i * SLICE_SIZE, (i + 1)* SLICE_SIZE - 1));
+		} else {
+			docsArray.push(docs.slice(i * SLICE_SIZE, docs.length - 1));
+		}
+	}
+	console.timeEnd("SliceTime");
+	return docsArray;
+}
+
+/*-----------functions definition ends.-----------*/
+
+var url = 'mongodb://127.0.0.1:27017/node3';
+
+mongoose.connect(url);
+
+var taxiSchema = new Schema({
+		id: ObjectId,
+		l: [Number],
+		t: Date,
+		i: Boolean,
+		v: Number,
+		d: Number,
+		n: String
+	}, {"strict": false}
+);
+
+var TaxiRecord = mongoose.model("TaxiRecord", taxiSchema);
+
 var filepath = path.resolve(__dirname, "../TES");
 
+console.time("InsertTime");
 
 async.waterfall([
 	function(callback) {
@@ -229,7 +240,11 @@ async.waterfall([
 		);
 	},
 	function(Recorder, callback) {
-		bulkInsert(Recorder.records, callback);
+		var docs = Recorder.records;
+		// manyBulkInsert(docs, callback);
+		// mongooseBulkInsert(docs, callback);
+		// bulkInsert(docs, callback);
+		singleLoopInsert(docs, callback);
 	}
 ],	function(err, output){
 	if(err){
@@ -237,13 +252,11 @@ async.waterfall([
 		return;
 	}
 	console.log(output);
-
+	// return;
 	var targetIndex = {
 		indexArray: [{t: 1}, {n: 1}, {loc: 1}],
 		commentArray: [" on time", " on number", " on location"]
 	};
-
 	indexOp.createIndex(url, targetIndex);
-
 });
 
