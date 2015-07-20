@@ -34,6 +34,10 @@ Index.createIndex = function (url, indexObject) {
 					callback();
 				});
 			}, function(err){
+				if(err){
+					console.log(err);
+					return;
+				}
 				db.close();
 				console.log("index has created.");
 			}
