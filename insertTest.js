@@ -1,5 +1,7 @@
 
 //created by Tiny, 2015/7/16
+//This js code is supposed to test insert methods and index methods.
+//slicedBulkInsert.js is currently the best resolution.
 
 var fs = require('fs');
 var path = require('path');

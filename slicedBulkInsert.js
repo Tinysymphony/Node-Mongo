@@ -4,7 +4,7 @@ var async = require('async');
 
 var fileParser = require('./fileParser');
 
-var url = 'mongodb://127.0.0.1:/node6';
+var url = 'mongodb://127.0.0.1:27017/node6';
 
 var insertOp = require('./bulkInsert').init(url);
 
