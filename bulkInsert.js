@@ -76,21 +76,16 @@ Insertion.manyBulkInsert = function(docs, callback){
 
 		console.log("Sliced to " + parts + " parts");
 
-		console.timeEnd("Before Insert");
-
-		console.time("single insert");
+		//console.timeEnd("Before Insert");
 
 		// var testArray = [
-		// docsArray[3], docsArray[6], 
-		// docsArray[7], docsArray[1],
-		// docsArray[10],docsArray[11],
-		// docsArray[40],docsArray[50]
+		// docsArray[3], docsArray[6],
+		// docsArray[7], docsArray[1]
 		// ];
 
 		// //single thousand insert test
 		// col.insertMany(docsArray[5], function(err){
 		// 	if(err) callback(err);
-		// 	console.timeEnd("single insert");
 		// 	console.timeEnd("InsertTime / manyBulkInsert");
 		// 	callback(null, "Insert Success!");
 		// });
@@ -100,8 +95,8 @@ Insertion.manyBulkInsert = function(docs, callback){
 			function(docPart, cb){
 				col.insertMany(docPart, function(err){
 					if(err) cb(err);
-					console.timeEnd("single insert");
-					console.log( ++insertCount / parts * 100 + "% Finished.");
+					// console.timeEnd("single insert");
+					// console.log( ++insertCount / parts * 100 + "% Finished.");
 					cb();
 				});
 			},
@@ -109,7 +104,7 @@ Insertion.manyBulkInsert = function(docs, callback){
 				if(err) callback(err);
 				db.close();
 				console.timeEnd("InsertTime / manyBulkInsert");
-				callback(null, "Insert Success!");				
+				callback(null, docs.length);
 			}
 		);
 	});
@@ -178,7 +173,7 @@ Insertion.singleLoopInsert = function(docs, callback) {
 			function(err){
 				if(err) callback(err);
 				console.timeEnd("InsertTime / singleLoopInsert");
-				callback(null, "Insert Success!");	
+				callback(null, "Insert Success!");
 				db.close();
 			}
 		);
@@ -190,7 +185,7 @@ Insertion.mongooseBulkInsert = function(docs, callback){
 
 	var parts = Math.ceil(docs.length / SLICE_SIZE);
 	var docsArray = thousandSlice(docs, parts);
-	
+
 	// //a thousand insert test
 	// this.TaxiRecord.collection.insert(docsArray[6], function(err){
 	// 	if(err) callback(err);
@@ -202,6 +197,20 @@ Insertion.mongooseBulkInsert = function(docs, callback){
 	var insertCount = 0;
 	async.each(docsArray,
 		function(docPart, cb){
+			// var bulk = this.TaxiRecord.collection.initializeOrderedBulkOp();
+			// counter = 0;
+			// for(var index in docPart){
+			// 	bulk.insert(docPart[index]);
+			// 	counter++;
+			// 	if(counter == 1000){
+			// 		bulk.execute(function(err, op){
+			// 			if(err) throw err;
+			// 			console.log(++insertCount / parts * 100 + " % Finished");
+			// 			cb();
+			// 		});
+			// 	}
+			// }
+
 			this.TaxiRecord.collection.insert(docPart, function(err){
 				if(err){
 					cb(err);
@@ -214,22 +223,22 @@ Insertion.mongooseBulkInsert = function(docs, callback){
 			if(err) callback(err);
 			mongoose.disconnect();
 			console.timeEnd("InsertTime / mongooseBulkInsert");
-			callback(null, "Insert Success!");				
+			callback(null, "Insert Success!");
 		}
 	);
 }
 
 function thousandSlice(docs, parts){
-	console.time("SliceTime");
-	var docsArray = []; 
+	//console.time("SliceTime");
+	var docsArray = [];
 	for(var i = 0 ; i < parts; i ++){
 		if(i != parts - 1) {
-			docsArray.push(docs.slice(i * SLICE_SIZE, (i + 1)* SLICE_SIZE - 1));
+			docsArray.push(docs.slice(i * SLICE_SIZE, (i + 1)* SLICE_SIZE));
 		} else {
-			docsArray.push(docs.slice(i * SLICE_SIZE, docs.length - 1));
+			docsArray.push(docs.slice(i * SLICE_SIZE, docs.length));
 		}
 	}
-	console.timeEnd("SliceTime");
+	//console.timeEnd("SliceTime");
 	return docsArray;
 }
 

@@ -8,11 +8,9 @@ var async = require('async');
 var url = 'mongodb://127.0.0.1:27017/node4';
 
 
-var indexOp = require('./mongo-index'); 
+var indexOp = require('./mongo-index');
 var fileParser = require('./fileParser');
 var insertOp = require('./bulkInsert').init(url);
-
-var RECORD_SIZE = 39;
 
 var goThrough = function(dir, callback) {
 	var results = [];
@@ -34,7 +32,6 @@ var goThrough = function(dir, callback) {
 				}
 			});
 		});
-
 	});
 }
 
