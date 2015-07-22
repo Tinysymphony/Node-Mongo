@@ -8,7 +8,7 @@ client.connect(url, function (err, db) {
 			console.log(err);
 			return;
 		}
-		console.log(docs.length);
+		console.log("Find " + docs.length + " records that satisfy the conditions.");
 		console.log(docs.pop());
 		db.close();
 		console.timeEnd("Find Time");

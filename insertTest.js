@@ -3,42 +3,17 @@
 //This js code is supposed to test insert methods and index methods.
 //slicedBulkInsert.js is currently the best resolution.
 
-var fs = require('fs');
 var path = require('path');
 var async = require('async');
 
 var url = 'mongodb://127.0.0.1:27017/node4';
 
-
 var indexOp = require('./mongo-index');
 var fileParser = require('./fileParser');
 var insertOp = require('./bulkInsert').init(url);
+var goThrough = require('./goThrough');
 
-var goThrough = function(dir, callback) {
-	var results = [];
-	fs.readdir(dir, function(err, list){
-		if(err) return callback(err);
-		var pending = list.length;
-		if(!pending) return callback(null, results);
-		list.forEach(function(file){
-			file = path.resolve(dir, file);
-			fs.stat(file, function(err, stat){
-				if(stat && stat.isDirectory()){
-					goThrough(file, function(err, res){
-						results = results.concat(res);
-						if(!--pending) callback(null, results);
-					});
-				} else {
-					results.push(file);
-					if(!--pending) callback(null, results);
-				}
-			});
-		});
-	});
-}
-
-/*-----------functions definition ends.-----------*/
-
+//start
 console.time("Before Insert");
 
 var filepath = path.resolve(__dirname, "../TES");
@@ -48,6 +23,7 @@ console.time("InsertTime");
 async.waterfall([
 	function(callback) {
 		goThrough(filepath, function(err, paths){
+			if(err) callback(err);
 			console.log("Number of files : " + paths.length);
 			callback(null, paths)
 		});
@@ -88,5 +64,3 @@ async.waterfall([
 	};
 	indexOp.createIndex(url, targetIndex);
 });
-
-//sshfs

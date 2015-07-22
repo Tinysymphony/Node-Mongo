@@ -3,40 +3,17 @@ var path = require('path');
 var async = require('async');
 
 var fileParser = require('./fileParser');
+var goThrough = require('./goThrough');
 
 var url = 'mongodb://127.0.0.1:27017/node6';
 
 var insertOp = require('./bulkInsert').init(url);
-
-var goThrough = function(dir, callback) {
-	var results = [];
-	fs.readdir(dir, function(err, list){
-		if(err) return callback(err);
-		var pending = list.length;
-		if(!pending) return callback(null, results);
-		list.forEach(function(file){
-			file = path.resolve(dir, file);
-			fs.stat(file, function(err, stat){
-				if(stat && stat.isDirectory()){
-					goThrough(file, function(err, res){
-						results = results.concat(res);
-						if(!--pending) callback(null, results);
-					});
-				} else {
-					results.push(file);
-					if(!--pending) callback(null, results);
-				}
-			});
-		});
-	});
-}
 
 console.time("bulk insert");
 console.time("UpTime");
 
 var MAX_SIZE = 20000000;
 var FILE_BATCH_SIZE = 100;
-var SLICE_SIZE = 1000;
 var filepath = path.resolve(__dirname, "../TES");
 
 async.waterfall([
@@ -59,7 +36,7 @@ async.waterfall([
 		}
 
 		var processCount = 0;
-        var totalInserted = 0;
+		var totalInserted = 0;
 		async.eachSeries(fileSlice, function(slice, cn){
 			var Recorder = new Object();
 			Recorder.records = [];
@@ -70,14 +47,16 @@ async.waterfall([
 				if(err) cn(err);
 				insertOp.manyBulkInsert(Recorder.records, function(err, insertedCount) {
 				    if(err) cn(err);
-                    totalInserted += insertedCount;
+		            totalInserted += insertedCount;
 			        console.log("Progress : " +  ++processCount / partsCount * 100 + " %...");
-                    console.log("Total inserted Records : " + totalInserted);
-                    console.timeEnd("UpTime");
-                    if(totalInserted > MAX_SIZE){
-                    	callback(null, "Insert Success. ");
-                    }
-                    cn();
+		            console.log("Total inserted Records : " + totalInserted);
+		            console.timeEnd("UpTime");
+
+		            if(totalInserted > MAX_SIZE){
+		            	callback(null, "Insert Success. ");
+		            }
+
+		            cn();
 				});
 			});
 		}, function(err){

@@ -126,9 +126,6 @@ Insertion.bulkInsert = function(docs, callback){
 		// var batch = col.initializeOrderedBulkOp();
 		var batch = col.initializeUnorderedBulkOp();
 
-		var ddd = docs.slice(100, 1099);
-
-
 		// //a thousand insert test
 		// for(var index in ddd){
 		// 	var doc = ddd[index];
